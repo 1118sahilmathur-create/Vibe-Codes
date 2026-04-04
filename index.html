@@ -1,0 +1,1275 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Genie vs Aam Aadmi — Investment Simulator</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@400;500;600&display=swap');
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #ffffff;
+    --bg2: #f7f7f5;
+    --bg3: #f0eeea;
+    --text: #1a1a1a;
+    --text2: #555550;
+    --text3: #888880;
+    --border: rgba(0,0,0,0.10);
+    --border2: rgba(0,0,0,0.20);
+    --radius-md: 8px;
+    --radius-lg: 14px;
+    --blue: #185FA5;
+    --green: #3B6D11;
+    --amber: #BA7517;
+    --red: #C0392B;
+    --purple: #7B3FA0;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #1c1c1a;
+      --bg2: #242422;
+      --bg3: #2c2c28;
+      --text: #f0eeea;
+      --text2: #b0aea8;
+      --text3: #777770;
+      --border: rgba(255,255,255,0.10);
+      --border2: rgba(255,255,255,0.20);
+      --blue: #6aabf0;
+      --green: #7ec448;
+      --amber: #f0b84a;
+      --red: #f07070;
+      --purple: #c07af0;
+    }
+  }
+  body {
+    font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+    background: var(--bg3);
+    color: var(--text);
+    min-height: 100vh;
+    padding: 2rem 1rem 4rem;
+    font-size: 15px;
+    line-height: 1.6;
+  }
+  .container { max-width: 900px; margin: 0 auto; }
+
+  .header { margin-bottom: 2rem; }
+  .header h1 {
+    font-family: 'DM Serif Display', Georgia, serif;
+    font-size: 32px;
+    font-weight: 400;
+    margin-bottom: 4px;
+    line-height: 1.2;
+  }
+  .header .sub { font-size: 14px; color: var(--text2); }
+
+  .data-status {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: 12px; padding: 4px 10px;
+    border-radius: 99px;
+    border: 0.5px solid var(--border2);
+    color: var(--text2);
+    background: var(--bg);
+    margin-top: 10px;
+  }
+  .data-status .dot {
+    width: 7px; height: 7px; border-radius: 50%;
+    background: #ccc; flex-shrink: 0;
+  }
+  .data-status.live .dot { background: #3B6D11; }
+  .data-status.stale .dot { background: var(--amber); }
+
+  .card {
+    background: var(--bg);
+    border: 0.5px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 1.25rem 1.5rem;
+    margin-bottom: 1rem;
+  }
+  .section-title {
+    font-size: 11px; font-weight: 600;
+    color: var(--text3);
+    text-transform: uppercase; letter-spacing: .07em;
+    margin-bottom: 1rem;
+  }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; }
+  .grid4 { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 14px; }
+  @media(max-width:620px) {
+    .grid2,.grid3,.grid4 { grid-template-columns: 1fr 1fr; }
+    .metric-grid { grid-template-columns: 1fr 1fr !important; }
+  }
+  @media(max-width:400px) {
+    .grid2,.grid3,.grid4 { grid-template-columns: 1fr; }
+  }
+  .field { display: flex; flex-direction: column; gap: 5px; }
+  .field label { font-size: 13px; color: var(--text2); }
+  .field input[type=number], .field input[type=text], select {
+    padding: 9px 10px;
+    border: 0.5px solid var(--border2);
+    border-radius: var(--radius-md);
+    background: var(--bg2);
+    color: var(--text);
+    font-size: 14px;
+    font-family: inherit;
+    outline: none;
+    width: 100%;
+    transition: border-color .15s;
+  }
+  .field input:focus, select:focus { border-color: var(--blue); }
+
+  .alloc-row { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+  .alloc-row label { font-size: 13px; min-width: 120px; color: var(--text2); }
+  .alloc-row input[type=range] { flex: 1; accent-color: var(--blue); }
+  .alloc-row .val { font-size: 13px; font-weight: 600; min-width: 36px; text-align: right; }
+  .alloc-total { font-size: 12px; margin-top: 4px; }
+
+  .toggle-row { display: flex; align-items: center; gap: 10px; margin-top: .75rem; }
+  .toggle-row label { font-size: 13px; color: var(--text2); }
+  .toggle { position: relative; display: inline-block; width: 36px; height: 20px; }
+  .toggle input { opacity: 0; width: 0; height: 0; }
+  .toggle-slider {
+    position: absolute; cursor: pointer;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: var(--border2); border-radius: 99px;
+    transition: .2s;
+  }
+  .toggle-slider:before {
+    position: absolute; content: "";
+    height: 14px; width: 14px;
+    left: 3px; bottom: 3px;
+    background: white; border-radius: 50%;
+    transition: .2s;
+  }
+  .toggle input:checked + .toggle-slider { background: var(--blue); }
+  .toggle input:checked + .toggle-slider:before { transform: translateX(16px); }
+
+  .hint { font-size: 12px; color: var(--text3); margin-top: 8px; line-height: 1.5; }
+
+  .run-btn {
+    background: var(--text);
+    color: var(--bg);
+    border: none;
+    border-radius: var(--radius-md);
+    padding: 13px 36px;
+    font-size: 15px;
+    font-weight: 600;
+    font-family: inherit;
+    cursor: pointer;
+    margin-top: .5rem;
+    transition: opacity .15s, transform .1s;
+  }
+  .run-btn:hover { opacity: .85; }
+  .run-btn:active { transform: scale(.98); }
+
+  .error { color: var(--red); font-size: 13px; margin-top: 8px; min-height: 20px; }
+
+  #results { margin-top: 1.75rem; display: none; }
+  .tab-bar { display: flex; gap: 8px; margin-bottom: 1.25rem; flex-wrap: wrap; }
+  .tab {
+    padding: 7px 18px;
+    border-radius: var(--radius-md);
+    border: 0.5px solid var(--border2);
+    font-size: 13px;
+    cursor: pointer;
+    background: var(--bg);
+    color: var(--text2);
+    font-family: inherit;
+    transition: all .15s;
+  }
+  .tab.active { background: var(--text); color: var(--bg); border-color: transparent; }
+
+  .metric-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 10px; margin-bottom: 1rem; }
+  .metric {
+    background: var(--bg2);
+    border-radius: var(--radius-md);
+    padding: .85rem 1rem;
+  }
+  .metric .mlabel { font-size: 11px; color: var(--text2); margin-bottom: 4px; text-transform: uppercase; letter-spacing: .04em; }
+  .metric .mval { font-size: 22px; font-weight: 600; line-height: 1.2; }
+  .metric .msub { font-size: 11px; color: var(--text3); margin-top: 3px; }
+
+  .chart-wrap { position: relative; width: 100%; height: 300px; margin-bottom: 1rem; }
+  .legend { display: flex; gap: 16px; font-size: 12px; color: var(--text2); flex-wrap: wrap; }
+  .legend span { display: flex; align-items: center; gap: 5px; }
+  .legend-dot { width: 10px; height: 10px; border-radius: 2px; flex-shrink: 0; }
+
+  /* Compare table */
+  .compare-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .compare-table th {
+    text-align: left; padding: 9px 8px;
+    border-bottom: 0.5px solid var(--border);
+    color: var(--text2); font-weight: 600; font-size: 11px;
+    text-transform: uppercase; letter-spacing: .05em;
+  }
+  .compare-table td { padding: 9px 8px; border-bottom: 0.5px solid var(--border); vertical-align: middle; }
+  .compare-table tr:last-child td { border-bottom: none; }
+  .compare-table .metric-group {
+    font-size: 10px; font-weight: 700; padding: 6px 8px 2px;
+    text-transform: uppercase; letter-spacing: .08em; color: var(--text3);
+    border-bottom: 0.5px solid var(--border);
+    background: var(--bg2);
+  }
+  .winner {
+    font-size: 10px; font-weight: 600; padding: 2px 7px;
+    border-radius: var(--radius-md);
+    background: #EAF3DE; color: #27500A;
+    margin-left: 4px; white-space: nowrap;
+  }
+  @media(prefers-color-scheme:dark){ .winner { background: #27500A; color: #C0DD97; } }
+
+  .bottom-item {
+    display: flex; align-items: center; gap: 8px; padding: 8px 0;
+    border-bottom: 0.5px solid var(--border); font-size: 13px; flex-wrap: wrap;
+  }
+  .bottom-item:last-child { border-bottom: none; }
+  .badge {
+    display: inline-block; padding: 2px 9px; border-radius: 99px;
+    font-size: 11px; font-weight: 600; background: #E6F1FB; color: #0C447C;
+    white-space: nowrap;
+  }
+  @media(prefers-color-scheme:dark){ .badge { background: #0C447C; color: #B5D4F4; } }
+
+  .tab-panel { display: none; }
+  .tab-panel.active { display: block; }
+
+  .verdict {
+    border-radius: var(--radius-lg);
+    padding: 1rem 1.25rem;
+    margin-bottom: 1rem;
+    font-size: 14px;
+    font-weight: 500;
+    border: 0.5px solid var(--border);
+    line-height: 1.6;
+  }
+
+  .real-badge {
+    font-size: 11px; font-weight: 600; padding: 2px 8px;
+    border-radius: 99px; background: var(--bg2);
+    color: var(--text3); border: 0.5px solid var(--border2);
+    margin-left: 8px; vertical-align: middle;
+  }
+
+  .loading-overlay {
+    display: none; position: fixed; inset: 0;
+    background: rgba(0,0,0,.35); z-index: 99;
+    align-items: center; justify-content: center;
+    font-size: 16px; color: #fff; font-weight: 500;
+    flex-direction: column; gap: 12px;
+  }
+  .loading-overlay.show { display: flex; }
+  .spinner {
+    width: 28px; height: 28px; border: 3px solid rgba(255,255,255,.3);
+    border-top-color: #fff; border-radius: 50%;
+    animation: spin .7s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .info-chip {
+    display: inline-flex; align-items: center; gap: 4px;
+    font-size: 11px; color: var(--text3);
+    border: 0.5px solid var(--border); border-radius: 99px;
+    padding: 2px 8px; cursor: help; margin-left: 4px;
+  }
+
+  /* ── Explainer card ── */
+  .explainer-card { padding: 0; overflow: hidden; }
+  .explainer-card[open] .explainer-chevron { transform: rotate(0deg); }
+  .explainer-summary {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 1rem 1.5rem; cursor: pointer; list-style: none; user-select: none;
+  }
+  .explainer-summary::-webkit-details-marker { display: none; }
+  .explainer-title { font-size: 15px; font-weight: 600; }
+  .explainer-chevron {
+    font-size: 11px; color: var(--text3);
+    transform: rotate(180deg);
+    transition: transform .2s;
+  }
+  .explainer-body { padding: 0 1.5rem 1.5rem; border-top: 0.5px solid var(--border); }
+  .explainer-section { margin-top: 1.25rem; }
+  .explainer-section h3 {
+    font-family: 'DM Serif Display', Georgia, serif;
+    font-size: 18px; font-weight: 400;
+    margin-bottom: .6rem; color: var(--text);
+  }
+  .explainer-section p { font-size: 14px; color: var(--text2); margin-bottom: .75rem; line-height: 1.7; }
+
+  .persona-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: .75rem; }
+  @media(max-width:560px){ .persona-row { grid-template-columns: 1fr; } }
+  .persona {
+    display: flex; gap: 12px; align-items: flex-start;
+    padding: 1rem; border-radius: var(--radius-md);
+    border: 0.5px solid var(--border);
+  }
+  .persona-aa   { background: #EAF3DE22; border-color: #C0DD97; }
+  .persona-genie{ background: #E6F1FB22; border-color: #B5D4F4; }
+  .persona-icon { font-size: 28px; line-height: 1; flex-shrink: 0; }
+  .persona strong { font-size: 14px; display: block; margin-bottom: 4px; }
+  .persona p { font-size: 13px; color: var(--text2); margin: 0; line-height: 1.6; }
+
+  .assumption-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: .5rem; }
+  @media(max-width:600px){ .assumption-grid { grid-template-columns: 1fr; } }
+  .assumption-item {
+    padding: .85rem 1rem;
+    background: var(--bg2);
+    border-radius: var(--radius-md);
+    border: 0.5px solid var(--border);
+    display: flex; flex-direction: column; gap: 5px;
+  }
+  .a-label { font-size: 13px; font-weight: 600; color: var(--text); }
+  .a-desc  { font-size: 12px; color: var(--text2); line-height: 1.6; }
+</style>
+</head>
+<body>
+<div class="loading-overlay" id="loadingOverlay">
+  <div class="spinner"></div>
+  <span id="loadingMsg">Fetching live market data…</span>
+</div>
+
+<div class="container">
+  <div class="header">
+    <h1>Genie vs Aam Aadmi</h1>
+    <p class="sub">Can perfect market timing beat disciplined SIPs? Backed by real Nifty 50, Gold &amp; Debt data.</p>
+    <div class="data-status" id="dataStatus">
+      <span class="dot"></span>
+      <span id="dataStatusText">Loading market data…</span>
+    </div>
+  </div>
+
+  <!-- EXPLAINER CARD -->
+  <details class="card explainer-card" id="explainerCard" open>
+    <summary class="explainer-summary">
+      <span class="explainer-title">📖 What is this &amp; how does it work?</span>
+      <span class="explainer-chevron" id="explainerChevron">▲</span>
+    </summary>
+
+    <div class="explainer-body">
+      <div class="explainer-section">
+        <h3>The idea</h3>
+        <p>This simulator answers a classic investing debate: <strong>Is it better to invest a fixed amount every month (SIP), or wait patiently for market crashes and invest a lump sum at the bottom?</strong></p>
+        <p>We pit two characters against each other — both with the same income and the same savings rate, over the same time period:</p>
+        <div class="persona-row">
+          <div class="persona persona-aa">
+            <div class="persona-icon">🙂</div>
+            <div>
+              <strong>Aam Aadmi</strong>
+              <p>Invests a fixed amount every single month via SIP — rain, shine, crash or boom. No timing, no second-guessing.</p>
+            </div>
+          </div>
+          <div class="persona persona-genie">
+            <div class="persona-icon">🧞</div>
+            <div>
+              <strong>The Genie</strong>
+              <p>Has perfect foresight of market bottoms. Parks all savings in idle cash, then deploys everything at once when the market falls enough.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="explainer-section">
+        <h3>Key assumptions</h3>
+        <div class="assumption-grid">
+          <div class="assumption-item">
+            <span class="a-label">📊 Market data</span>
+            <span class="a-desc">Equity returns use Nifty 50 annual returns (fetched live from Yahoo Finance; falls back to historical data through 2024). Gold uses GOLDBEES ETF (INR-denominated, from 2007; estimated prior). Debt uses indicative FD/gilt rates.</span>
+          </div>
+          <div class="assumption-item">
+            <span class="a-label">💰 Parity</span>
+            <span class="a-desc">Both characters invest the <em>exact same rupee amount</em> from their salary each month. The Genie doesn't invest more — he just holds it as cash and deploys it later. The comparison is purely about <em>timing</em>, not amount.</span>
+          </div>
+          <div class="assumption-item">
+            <span class="a-label">🏦 Idle cash</span>
+            <span class="a-desc">The Genie's uninvested cash earns a fixed annual rate (default 6.5% p.a., like a liquid fund or FD). This interest also gets deployed at the next bottom, giving the Genie a small edge — but it's realistic since idle money doesn't sit under a mattress.</span>
+          </div>
+          <div class="assumption-item">
+            <span class="a-label">📉 Bottom detection</span>
+            <span class="a-desc">A "bottom" is defined as a point where equity has fallen X% from its recent peak (you set X). A cooldown period prevents multiple triggers in quick succession. This is the Genie's superpower — in reality, no one can identify bottoms in real time.</span>
+          </div>
+          <div class="assumption-item">
+            <span class="a-label">📈 Returns model</span>
+            <span class="a-desc">Annual returns are applied uniformly across all 12 months of each year (monthly compounding). This smooths intra-year volatility. Real markets are lumpier — the simulation is directionally accurate, not tick-by-tick precise.</span>
+          </div>
+          <div class="assumption-item">
+            <span class="a-label">🪙 Asset allocation</span>
+            <span class="a-desc">Both characters use the same equity/gold/debt mix that you set. The Genie only times his equity deployment — the blended return applies once he invests. No rebalancing is modelled.</span>
+          </div>
+          <div class="assumption-item">
+            <span class="a-label">📅 Income step-up</span>
+            <span class="a-desc">Both characters increase their monthly investment by the same % each year (matching salary growth). This keeps the comparison fair even as incomes rise over time.</span>
+          </div>
+          <div class="assumption-item">
+            <span class="a-label">🏷️ Taxes &amp; costs</span>
+            <span class="a-desc">No taxes (LTCG, STCG, dividend tax), no expense ratios, no transaction costs, no exit loads are modelled. Real returns will be lower. The comparison is pre-tax and pre-cost for both equally.</span>
+          </div>
+          <div class="assumption-item">
+            <span class="a-label">📐 Inflation adjustment</span>
+            <span class="a-desc">When the "real returns" toggle is on, corpus values are deflated by estimated Indian CPI (sourced from historical averages). This shows purchasing power, not nominal value.</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="explainer-section">
+        <h3>What this is <em>not</em></h3>
+        <p>This is not financial advice. The Genie is a hypothetical construct — perfect market timing is impossible in practice. The simulation is a thought experiment to help you understand <strong>how much edge market timing would need to have to beat consistent SIPs</strong>, and whether the answer surprises you.</p>
+      </div>
+    </div>
+  </details>
+
+  <div class="card">
+    <div class="section-title">Shared inputs</div>
+
+    <!-- Income → Investment derivation -->
+    <div class="grid3" style="margin-bottom:.75rem">
+      <div class="field">
+        <label>Monthly income (₹)</label>
+        <input type="number" id="income" value="100000" min="5000" step="5000" oninput="syncBudget()">
+      </div>
+      <div class="field">
+        <label>Savings rate (%)</label>
+        <input type="number" id="savingsRate" value="20" min="1" max="80" step="1" oninput="syncBudget()">
+      </div>
+      <div class="field">
+        <label>Monthly investment (₹)</label>
+        <input type="number" id="budget" value="20000" min="500" step="500" oninput="syncFromBudget()">
+      </div>
+    </div>
+    <div id="budget-hint" class="hint" style="margin-bottom:1.25rem">
+      20% of ₹1,00,000 = <strong>₹20,000 / month</strong> invested by both Genie &amp; Aam Aadmi.
+    </div>
+
+    <div class="grid3" style="margin-bottom:1.25rem">
+      <div class="field">
+        <label>Income step-up (% / year)</label>
+        <input type="number" id="stepup" value="10" min="0" max="30" step="1">
+      </div>
+      <div class="field">
+        <label>Start year</label>
+        <input type="number" id="startYear" value="2000" min="2000" max="2023">
+      </div>
+      <div class="field">
+        <label>End year</label>
+        <input type="number" id="endYear" value="2024" min="2001">
+      </div>
+    </div>
+
+    <div class="section-title">Asset allocation (must total 100%)</div>
+    <div class="alloc-row">
+      <label>Equity (Nifty 50)</label>
+      <input type="range" id="eq" min="0" max="100" value="60" step="5" oninput="syncAlloc()">
+      <span class="val" id="eq-val">60%</span>
+    </div>
+    <div class="alloc-row">
+      <label>Gold (MCX / INR)</label>
+      <input type="range" id="gold" min="0" max="100" value="20" step="5" oninput="syncAlloc()">
+      <span class="val" id="gold-val">20%</span>
+    </div>
+    <div class="alloc-row">
+      <label>Debt (FD / Gilt)</label>
+      <input type="range" id="debt" min="0" max="100" value="20" step="5" oninput="syncAlloc()">
+      <span class="val" id="debt-val">20%</span>
+    </div>
+    <div class="alloc-total" id="alloc-total"></div>
+
+    <div class="toggle-row">
+      <label class="toggle">
+        <input type="checkbox" id="realReturns">
+        <span class="toggle-slider"></span>
+      </label>
+      <label for="realReturns" style="cursor:pointer">Show inflation-adjusted (real) returns
+        <span class="info-chip" title="Deflates corpus by estimated Indian CPI inflation (~5.5% avg). Shows purchasing power, not nominal value.">ℹ</span>
+      </label>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="section-title">Genie settings</div>
+    <div class="grid3">
+      <div class="field">
+        <label>Bottom threshold (%)</label>
+        <input type="number" id="threshold" value="10" min="5" max="40" step="1">
+      </div>
+      <div class="field">
+        <label>Idle cash rate (% p.a.)</label>
+        <input type="number" id="idleRate" value="6.5" min="0" max="12" step="0.5">
+      </div>
+      <div class="field">
+        <label>Cooldown months</label>
+        <input type="number" id="cooldown" value="3" min="1" max="12" step="1">
+      </div>
+    </div>
+    <p class="hint">Bottom threshold: equity must fall this % from its recent peak for Genie to invest. Cooldown: min months before Genie can invest again. Genie accumulates SIP money as idle cash earning the idle rate, then deploys it all at a bottom. Income step-up: both strategies increase their monthly investment by this % each year (matching salary growth).</p>
+  </div>
+
+  <button class="run-btn" onclick="runSim()">Run simulation</button>
+  <div id="error" class="error"></div>
+
+  <div id="results">
+    <div class="tab-bar">
+      <div class="tab active" onclick="showTab('compare')">Comparison</div>
+      <div class="tab" onclick="showTab('risk')">Risk metrics</div>
+      <div class="tab" onclick="showTab('genie')">Genie journey</div>
+      <div class="tab" onclick="showTab('aa')">Aam Aadmi journey</div>
+    </div>
+
+    <!-- COMPARE TAB -->
+    <div id="tab-compare" class="tab-panel active">
+      <div class="metric-grid" id="metric-grid"></div>
+      <div id="verdict" class="verdict"></div>
+      <div class="card">
+        <div class="section-title">Head to head <span id="real-label" class="real-badge" style="display:none">Real (inflation-adj.)</span></div>
+        <table class="compare-table" id="compare-table"></table>
+      </div>
+      <div class="card">
+        <div class="section-title">Portfolio growth over time</div>
+        <div class="chart-wrap"><canvas id="growthChart"></canvas></div>
+        <div class="legend">
+          <span><span class="legend-dot" style="background:#185FA5"></span>Genie</span>
+          <span><span class="legend-dot" style="background:#3B6D11"></span>Aam Aadmi</span>
+          <span><span class="legend-dot" style="background:#7B3FA0"></span>Buy &amp; Hold Nifty</span>
+          <span><span class="legend-dot" style="background:#BA7517;opacity:.7"></span>Total invested</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- RISK TAB -->
+    <div id="tab-risk" class="tab-panel">
+      <div class="card">
+        <div class="section-title">Risk &amp; return metrics explained</div>
+        <table class="compare-table" id="risk-table"></table>
+      </div>
+      <div class="card">
+        <div class="section-title">Monthly return distribution</div>
+        <div class="chart-wrap" style="height:260px"><canvas id="distChart"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="section-title">Drawdown over time</div>
+        <div class="chart-wrap" style="height:220px"><canvas id="drawdownChart"></canvas></div>
+        <div class="legend" style="margin-top:8px">
+          <span><span class="legend-dot" style="background:#185FA5"></span>Genie</span>
+          <span><span class="legend-dot" style="background:#3B6D11"></span>Aam Aadmi</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- GENIE TAB -->
+    <div id="tab-genie" class="tab-panel">
+      <div class="card">
+        <div class="section-title">Genie's bottom calls</div>
+        <div id="bottom-list" class="bottom-list"></div>
+      </div>
+      <div class="card">
+        <div class="section-title">Equity index with bottoms marked</div>
+        <div class="chart-wrap" style="height:260px"><canvas id="genieChart"></canvas></div>
+        <div class="legend" style="margin-top:8px">
+          <span><span class="legend-dot" style="background:#185FA5"></span>Equity index (rebased to 100)</span>
+          <span><span class="legend-dot" style="background:#C0392B"></span>Bottom — lump sum deployed</span>
+        </div>
+      </div>
+      <div class="card">
+        <div class="section-title">Genie's corpus composition</div>
+        <div class="chart-wrap" style="height:240px"><canvas id="genieCorpusChart"></canvas></div>
+        <div class="legend" style="margin-top:8px">
+          <span><span class="legend-dot" style="background:#185FA5"></span>Invested corpus</span>
+          <span><span class="legend-dot" style="background:#BA7517"></span>Idle cash (earning interest)</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- AA TAB -->
+    <div id="tab-aa" class="tab-panel">
+      <div class="card">
+        <div class="section-title">Aam Aadmi's SIP discipline</div>
+        <div class="chart-wrap" style="height:280px"><canvas id="aaChart"></canvas></div>
+        <div class="legend" style="margin-top:8px">
+          <span><span class="legend-dot" style="background:#3B6D11"></span>Corpus</span>
+          <span><span class="legend-dot" style="background:#BA7517;opacity:.7"></span>Invested</span>
+        </div>
+      </div>
+      <div class="card" id="stepup-note" style="display:none">
+        <div class="section-title">Income step-up impact on Aam Aadmi</div>
+        <div class="chart-wrap" style="height:240px"><canvas id="stepupChart"></canvas></div>
+        <div class="legend" style="margin-top:8px">
+          <span><span class="legend-dot" style="background:#3B6D11"></span>With step-up</span>
+          <span><span class="legend-dot" style="background:#888"></span>Flat SIP (no step-up)</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ─────────────────────────────────────────────
+// 1. HISTORICAL DATA (2000-2024 fallback)
+// ─────────────────────────────────────────────
+const BASE_EQUITY = {
+  2000:-20,2001:-16,2002:3,2003:72,2004:11,2005:36,2006:40,2007:55,2008:-52,
+  2009:76,2010:18,2011:-25,2012:28,2013:7,2014:31,2015:-4,2016:3,2017:29,
+  2018:3,2019:12,2020:15,2021:24,2022:5,2023:20,2024:9
+};
+const BASE_GOLD = {
+  2000:-5,2001:5,2002:14,2003:14,2004:1,2005:8,2006:20,2007:17,2008:28,
+  2009:18,2010:25,2011:32,2012:12,2013:-20,2014:-6,2015:-7,2016:12,2017:5,
+  2018:8,2019:23,2020:28,2021:-4,2022:12,2023:14,2024:20
+};
+const BASE_DEBT = {
+  2000:10,2001:10,2002:10,2003:8,2004:7,2005:7,2006:7,2007:8,2008:9,
+  2009:7,2010:7,2011:8,2012:9,2013:8,2014:9,2015:8,2016:7,2017:7,
+  2018:7,2019:8,2020:7,2021:6,2022:6,2023:7,2024:7
+};
+// Indian CPI inflation estimates (%)
+const INFLATION = {
+  2000:4,2001:4,2002:4.3,2003:3.8,2004:3.8,2005:4.2,2006:6.1,2007:6.4,2008:8.4,
+  2009:10.9,2010:12,2011:8.9,2012:9.3,2013:10.9,2014:6.7,2015:4.9,2016:4.5,
+  2017:3.6,2018:3.4,2019:4.8,2020:6.2,2021:5.5,2022:6.7,2023:5.4,2024:4.8
+};
+
+const ASSETS = {
+  equity: { annualReturns: { ...BASE_EQUITY } },
+  gold:   { annualReturns: { ...BASE_GOLD } },
+  debt:   { annualReturns: { ...BASE_DEBT } }
+};
+
+let charts = {};
+let maxDataYear = 2024;
+let dataSource = 'fallback';
+let lastUpdated = null;
+
+// ─────────────────────────────────────────────
+// 2. LIVE DATA FETCH (Yahoo Finance via CORS proxy)
+// ─────────────────────────────────────────────
+const CORS = 'https://corsproxy.io/?url=';
+const TODAY = new Date();
+const CURRENT_YEAR = TODAY.getFullYear();
+
+async function fetchYahooAnnualReturn(ticker, fromYear) {
+  // fetch from Jan 1 of fromYear to today
+  const from = Math.floor(new Date(fromYear + '-01-01').getTime() / 1000);
+  const to   = Math.floor(TODAY.getTime() / 1000);
+  const url  = `https://query1.finance.yahoo.com/v8/finance/chart/${ticker}?interval=1mo&period1=${from}&period2=${to}`;
+  const resp = await fetch(CORS + encodeURIComponent(url));
+  if (!resp.ok) throw new Error('HTTP ' + resp.status);
+  const json = await resp.json();
+  const result = json.chart.result[0];
+  const timestamps = result.timestamp;
+  const closes = result.indicators.adjclose[0].adjclose;
+
+  // Build year → annual return map
+  const byYear = {};
+  for (let i = 1; i < timestamps.length; i++) {
+    const d = new Date(timestamps[i] * 1000);
+    const y = d.getFullYear();
+    if (!byYear[y]) byYear[y] = { first: closes[i-1], last: closes[i] };
+    else byYear[y].last = closes[i];
+  }
+  const returns = {};
+  for (const [y, {first, last}] of Object.entries(byYear)) {
+    if (first && last && first > 0)
+      returns[+y] = +((last/first - 1) * 100).toFixed(2);
+  }
+  return returns;
+}
+
+async function loadLiveData() {
+  setStatus('loading');
+  try {
+    const earliestNeeded = 2000;
+    // ^NSEI = Nifty 50, GC=F = Gold futures USD (we'll adjust), use SGBDEC29.NS as a proxy for INR gold
+    // Using ^NSEI for equity, GOLDBEES.NS for gold (INR ETF), LIQUIDBEES.NS or fixed for debt
+    const [equityRaw, goldRaw] = await Promise.all([
+      fetchYahooAnnualReturn('^NSEI', earliestNeeded),
+      fetchYahooAnnualReturn('GOLDBEES.NS', 2007) // GOLDBEES started 2007
+    ]);
+
+    let updated = false;
+    // Merge equity returns
+    for (const [y, r] of Object.entries(equityRaw)) {
+      const yr = +y;
+      if (yr >= 2000) { ASSETS.equity.annualReturns[yr] = r; updated = true; }
+    }
+    // Merge gold returns (from 2007 only, keep base for earlier)
+    for (const [y, r] of Object.entries(goldRaw)) {
+      const yr = +y;
+      if (yr >= 2007) { ASSETS.gold.annualReturns[yr] = r; updated = true; }
+    }
+
+    // Find latest year we actually have equity data for
+    const years = Object.keys(ASSETS.equity.annualReturns).map(Number);
+    maxDataYear = Math.max(...years);
+
+    if (maxDataYear >= CURRENT_YEAR - 1) {
+      // Check if we have current year partial data
+      if (equityRaw[CURRENT_YEAR]) maxDataYear = CURRENT_YEAR;
+      lastUpdated = TODAY;
+      dataSource = 'live';
+      setStatus('live');
+      document.getElementById('dataStatusText').textContent =
+        `Live data · Nifty 50 + Gold ETF · Last close ${formatDate(TODAY)}`;
+    } else {
+      setStatus('stale');
+      document.getElementById('dataStatusText').textContent =
+        `Partial live data · through ${maxDataYear} · some data is estimated`;
+    }
+    // Update end year max
+    document.getElementById('endYear').max = maxDataYear;
+    document.getElementById('endYear').value = Math.min(+document.getElementById('endYear').value, maxDataYear);
+  } catch(e) {
+    console.warn('Live data fetch failed, using historical fallback:', e);
+    setStatus('stale');
+    document.getElementById('dataStatusText').textContent =
+      `Historical data only · through 2024 · Live fetch failed`;
+    maxDataYear = 2024;
+  }
+}
+
+function setStatus(type) {
+  const el = document.getElementById('dataStatus');
+  el.className = 'data-status ' + type;
+}
+function formatDate(d) {
+  return d.toLocaleDateString('en-IN', { day:'numeric', month:'short', year:'numeric' });
+}
+
+// ─────────────────────────────────────────────
+// 3. UI SYNC
+// ─────────────────────────────────────────────
+function syncBudget() {
+  const income = +document.getElementById('income').value || 0;
+  const rate   = +document.getElementById('savingsRate').value || 0;
+  const budget = Math.round(income * rate / 100 / 500) * 500 || Math.round(income * rate / 100);
+  document.getElementById('budget').value = budget;
+  updateBudgetHint(income, rate, budget);
+}
+
+function syncFromBudget() {
+  // User typed directly into budget — back-derive savings rate
+  const income = +document.getElementById('income').value || 1;
+  const budget = +document.getElementById('budget').value || 0;
+  const rate   = Math.min(80, Math.round(budget / income * 100));
+  document.getElementById('savingsRate').value = rate;
+  updateBudgetHint(income, rate, budget);
+}
+
+function updateBudgetHint(income, rate, budget) {
+  const fmt = n => '₹' + Math.round(n).toLocaleString('en-IN');
+  document.getElementById('budget-hint').innerHTML =
+    `${rate}% of ${fmt(income)} = <strong>${fmt(budget)} / month</strong> invested by both Genie &amp; Aam Aadmi.`;
+}
+
+function syncAlloc() {
+  let eq = +document.getElementById('eq').value;
+  let gold = +document.getElementById('gold').value;
+  let debt = +document.getElementById('debt').value;
+  document.getElementById('eq-val').textContent = eq + '%';
+  document.getElementById('gold-val').textContent = gold + '%';
+  document.getElementById('debt-val').textContent = debt + '%';
+  let total = eq + gold + debt;
+  let el = document.getElementById('alloc-total');
+  if (total !== 100) {
+    el.textContent = 'Total: ' + total + '% — must equal 100%';
+    el.style.color = '#C0392B';
+  } else {
+    el.textContent = 'Total: 100% ✓';
+    el.style.color = '#3B6D11';
+  }
+}
+syncAlloc();
+syncBudget();
+
+// ─────────────────────────────────────────────
+// 4. SIMULATION CORE
+// ─────────────────────────────────────────────
+function blendMonthlyReturn(year, alloc) {
+  let eq   = ASSETS.equity.annualReturns[year] ?? 10;
+  let gold = ASSETS.gold.annualReturns[year]   ?? 8;
+  let debt = ASSETS.debt.annualReturns[year]   ?? 7;
+  return ((alloc.eq/100)*eq + (alloc.gold/100)*gold + (alloc.debt/100)*debt) / 100 / 12;
+}
+
+function buildMonthlyIndex(startYear, endYear) {
+  let months = [], idx = 100;
+  for (let y = startYear; y <= endYear; y++) {
+    let mr = (ASSETS.equity.annualReturns[y] ?? 10) / 100 / 12;
+    for (let m = 0; m < 12; m++) {
+      months.push({ year:y, month:m, idx, label: y+'-'+String(m+1).padStart(2,'0') });
+      idx *= (1+mr);
+    }
+  }
+  return months;
+}
+
+function buildInflationDeflator(startYear, endYear) {
+  // Returns array of monthly deflation factors (cumulative)
+  let factors = [], cumInflation = 1;
+  for (let y = startYear; y <= endYear; y++) {
+    let ann = (INFLATION[y] ?? 5.5) / 100;
+    let monthly = Math.pow(1 + ann, 1/12) - 1;
+    for (let m = 0; m < 12; m++) {
+      factors.push(cumInflation);
+      cumInflation *= (1 + monthly);
+    }
+  }
+  return factors; // divide corpus by factors[i] to get real value
+}
+
+function findBottoms(monthlyIdx, thresholdPct, cooldownMonths) {
+  let bottoms = [], peakIdx = monthlyIdx[0].idx, cooldownLeft = 0;
+  for (let i = 1; i < monthlyIdx.length; i++) {
+    let cur = monthlyIdx[i].idx;
+    if (cur > peakIdx) peakIdx = cur;
+    if (cooldownLeft > 0) { cooldownLeft--; continue; }
+    let drawdown = (peakIdx - cur) / peakIdx * 100;
+    if (drawdown >= thresholdPct) {
+      bottoms.push({ monthIdx:i, label:monthlyIdx[i].label, drawdown:drawdown.toFixed(1), idx:cur });
+      cooldownLeft = cooldownMonths;
+      peakIdx = cur;
+    }
+  }
+  return bottoms;
+}
+
+function calcRiskMetrics(series, corpusKey='corpus') {
+  // Monthly returns from corpus series
+  const monthlyR = [];
+  for (let i = 1; i < series.length; i++) {
+    const prev = series[i-1][corpusKey];
+    const cur  = series[i][corpusKey];
+    monthlyR.push(prev > 0 ? (cur - prev) / prev : 0);
+  }
+  const n = monthlyR.length;
+  const mean = monthlyR.reduce((a,b)=>a+b,0) / n;
+  const variance = monthlyR.reduce((a,b)=>a+(b-mean)**2,0) / n;
+  const vol = Math.sqrt(variance) * Math.sqrt(12) * 100; // annualised %
+
+  // Downside deviation (for Sortino)
+  const downReturns = monthlyR.filter(r => r < 0);
+  const downVariance = downReturns.reduce((a,b)=>a+b**2,0) / n;
+  const downsideDev = Math.sqrt(downVariance) * Math.sqrt(12) * 100;
+
+  // Max drawdown + recovery
+  let peak = series[0][corpusKey], maxDD = 0, maxDDStart = 0, maxDDEnd = 0;
+  let inDrawdown = false, ddStart = 0;
+  const drawdownSeries = [];
+  for (let i = 0; i < series.length; i++) {
+    const v = series[i][corpusKey];
+    if (v > peak) { peak = v; inDrawdown = false; }
+    const dd = peak > 0 ? (peak - v) / peak * 100 : 0;
+    drawdownSeries.push(-dd);
+    if (dd > maxDD) { maxDD = dd; maxDDEnd = i; }
+  }
+
+  // VaR 95% (monthly)
+  const sorted = [...monthlyR].sort((a,b)=>a-b);
+  const varIdx = Math.floor(n * 0.05);
+  const var95 = sorted[varIdx] * 100;
+
+  // CVaR 95% (expected shortfall)
+  const cvar95 = sorted.slice(0, varIdx).reduce((a,b)=>a+b,0) / varIdx * 100;
+
+  // Positive months %
+  const posMonths = monthlyR.filter(r=>r>0).length / n * 100;
+
+  // Best/worst month
+  const bestMonth = Math.max(...monthlyR) * 100;
+  const worstMonth = Math.min(...monthlyR) * 100;
+
+  return { vol, downsideDev, maxDD, var95, cvar95, posMonths, bestMonth, worstMonth, drawdownSeries, monthlyR };
+}
+
+function runAamAadmi(monthlyIdx, budget, stepupPct, alloc) {
+  let corpus = 0, invested = 0, peakCorpus = 0;
+  let series = [], currentBudget = budget, currentYear = monthlyIdx[0].year;
+  for (let i = 0; i < monthlyIdx.length; i++) {
+    // Apply step-up at new year
+    if (i > 0 && monthlyIdx[i].year !== currentYear && stepupPct > 0) {
+      currentBudget *= (1 + stepupPct / 100);
+      currentYear = monthlyIdx[i].year;
+    }
+    let mr = blendMonthlyReturn(monthlyIdx[i].year, alloc);
+    corpus = corpus * (1 + mr) + currentBudget;
+    invested += currentBudget;
+    if (corpus > peakCorpus) peakCorpus = corpus;
+    series.push({ label:monthlyIdx[i].label, corpus, invested });
+  }
+  let years = monthlyIdx.length / 12;
+  let cagr = invested > 0 ? (Math.pow(corpus / invested, 1/years) - 1) * 100 : 0;
+  let risk = calcRiskMetrics(series);
+  let sharpe = risk.vol > 0 ? cagr / risk.vol : 0;
+  let sortino = risk.downsideDev > 0 ? cagr / risk.downsideDev : 0;
+  let calmar = risk.maxDD > 0 ? cagr / risk.maxDD : 0;
+  return { corpus, invested, cagr, ...risk, sharpe, sortino, calmar, series };
+}
+
+function runAamAadmiFlat(monthlyIdx, budget, alloc) {
+  // Flat (no stepup) version for comparison
+  return runAamAadmi(monthlyIdx, budget, 0, alloc);
+}
+
+function runGenie(monthlyIdx, budget, stepupPct, alloc, bottoms) {
+  let idleRate = +document.getElementById('idleRate').value / 100 / 12;
+  let idleCash = 0, investedCorpus = 0, totalInvested = 0, peakCorpus = 0;
+  let series = [], bottomDeployed = [];
+  let bottomSet = new Set(bottoms.map(b=>b.monthIdx));
+  let currentBudget = budget, currentYear = monthlyIdx[0].year;
+  for (let i = 0; i < monthlyIdx.length; i++) {
+    if (i > 0 && monthlyIdx[i].year !== currentYear && stepupPct > 0) {
+      currentBudget *= (1 + stepupPct / 100);
+      currentYear = monthlyIdx[i].year;
+    }
+    let mr = blendMonthlyReturn(monthlyIdx[i].year, alloc);
+    idleCash = idleCash * (1 + idleRate) + currentBudget;
+    totalInvested += currentBudget;
+    if (bottomSet.has(i)) {
+      let deployed = idleCash;
+      investedCorpus = investedCorpus * (1 + mr) + deployed;
+      bottomDeployed.push({ monthIdx:i, label:monthlyIdx[i].label, amount:deployed });
+      idleCash = 0;
+    } else {
+      investedCorpus = investedCorpus * (1 + mr);
+    }
+    let total = investedCorpus + idleCash;
+    if (total > peakCorpus) peakCorpus = total;
+    series.push({ label:monthlyIdx[i].label, corpus:total, investedCorpus, idleCash, invested:totalInvested });
+  }
+  let corpus = investedCorpus + idleCash;
+  let years = monthlyIdx.length / 12;
+  let cagr = totalInvested > 0 ? (Math.pow(corpus / totalInvested, 1/years) - 1) * 100 : 0;
+  let risk = calcRiskMetrics(series);
+  let sharpe = risk.vol > 0 ? cagr / risk.vol : 0;
+  let sortino = risk.downsideDev > 0 ? cagr / risk.downsideDev : 0;
+  let calmar = risk.maxDD > 0 ? cagr / risk.maxDD : 0;
+  return { corpus, invested:totalInvested, cagr, ...risk, sharpe, sortino, calmar, series, bottomDeployed };
+}
+
+function runBuyHold(monthlyIdx, budget, alloc) {
+  // Lump sum at start with same total budget
+  let totalBudget = budget * monthlyIdx.length;
+  let corpus = totalBudget, peakCorpus = totalBudget;
+  let series = [];
+  for (let i = 0; i < monthlyIdx.length; i++) {
+    let mr = blendMonthlyReturn(monthlyIdx[i].year, alloc);
+    corpus *= (1 + mr);
+    if (corpus > peakCorpus) peakCorpus = corpus;
+    series.push({ label:monthlyIdx[i].label, corpus, invested:totalBudget });
+  }
+  return { corpus, series };
+}
+
+// ─────────────────────────────────────────────
+// 5. FORMAT HELPERS
+// ─────────────────────────────────────────────
+function fmtL(n) {
+  n = Math.round(n);
+  if (n >= 10000000) return '₹' + (n/10000000).toFixed(2) + ' Cr';
+  if (n >= 100000)   return '₹' + (n/100000).toFixed(2) + ' L';
+  return '₹' + n.toLocaleString('en-IN');
+}
+function fmtPct(v, dec=1) { return v.toFixed(dec) + '%'; }
+function fmtRatio(v) { return v.toFixed(2); }
+
+function destroyChart(id) {
+  if (charts[id]) { charts[id].destroy(); delete charts[id]; }
+}
+
+// ─────────────────────────────────────────────
+// 6. MAIN SIM RUNNER
+// ─────────────────────────────────────────────
+function runSim() {
+  let budget    = +document.getElementById('budget').value;
+  let stepup    = +document.getElementById('stepup').value;
+  let startYear = +document.getElementById('startYear').value;
+  let endYear   = +document.getElementById('endYear').value;
+  let eq        = +document.getElementById('eq').value;
+  let gold      = +document.getElementById('gold').value;
+  let debt      = +document.getElementById('debt').value;
+  let threshold = +document.getElementById('threshold').value;
+  let cooldown  = +document.getElementById('cooldown').value;
+  let realMode  = document.getElementById('realReturns').checked;
+  let errEl     = document.getElementById('error');
+
+  if (eq + gold + debt !== 100) { errEl.textContent = 'Asset allocation must total 100%.'; return; }
+  if (startYear >= endYear)     { errEl.textContent = 'Start year must be before end year.'; return; }
+  if (startYear < 2000)         { errEl.textContent = 'Start year must be 2000 or later.'; return; }
+  if (endYear > maxDataYear)    { errEl.textContent = `End year max is ${maxDataYear} (latest available data).`; return; }
+  errEl.textContent = '';
+
+  let alloc = { eq, gold, debt };
+  let monthlyIdx   = buildMonthlyIndex(startYear, endYear);
+  let deflators    = buildInflationDeflator(startYear, endYear);
+  let bottoms      = findBottoms(monthlyIdx, threshold, cooldown);
+  let aa           = runAamAadmi(monthlyIdx, budget, stepup, alloc);
+  let aaFlat       = stepup > 0 ? runAamAadmiFlat(monthlyIdx, budget, alloc) : null;
+  let genie        = runGenie(monthlyIdx, budget, stepup, alloc, bottoms);
+  let buyhold      = runBuyHold(monthlyIdx, budget, alloc);
+
+  // Inflate-adjust if toggled
+  function maybeReal(val, idx) {
+    return realMode ? val / deflators[idx] : val;
+  }
+
+  document.getElementById('results').style.display = 'block';
+  document.getElementById('real-label').style.display = realMode ? 'inline' : 'none';
+
+  // ── Metric cards ──
+  let genieCorpusAdj = maybeReal(genie.corpus, monthlyIdx.length-1);
+  let aaCorpusAdj    = maybeReal(aa.corpus, monthlyIdx.length-1);
+  let mGrid = document.getElementById('metric-grid');
+  mGrid.innerHTML = `
+    <div class="metric"><div class="mlabel">Genie corpus</div><div class="mval" style="color:var(--blue)">${fmtL(genieCorpusAdj)}</div><div class="msub">CAGR ${genie.cagr.toFixed(1)}%</div></div>
+    <div class="metric"><div class="mlabel">Aam Aadmi corpus</div><div class="mval" style="color:var(--green)">${fmtL(aaCorpusAdj)}</div><div class="msub">CAGR ${aa.cagr.toFixed(1)}%</div></div>
+    <div class="metric"><div class="mlabel">Total invested</div><div class="mval">${fmtL(aa.invested)}</div><div class="msub">${monthlyIdx.length} months</div></div>
+    <div class="metric"><div class="mlabel">Bottoms identified</div><div class="mval" style="color:var(--amber)">${bottoms.length}</div><div class="msub">at ${threshold}% drawdown</div></div>
+  `;
+
+  // ── Verdict ──
+  let genieWins = genieCorpusAdj > aaCorpusAdj;
+  let diff = Math.abs(genieCorpusAdj - aaCorpusAdj);
+  let vEl = document.getElementById('verdict');
+  if (genieWins) {
+    vEl.style.cssText = 'background:#E6F1FB;color:#0C447C;border-color:#B5D4F4';
+    vEl.textContent = `🧞 The Genie wins by ${fmtL(diff)} — perfect timing across ${bottoms.length} bottom calls paid off over ${endYear-startYear} years. But remember: the Genie knew the future. You don't.`;
+  } else {
+    vEl.style.cssText = 'background:#EAF3DE;color:#27500A;border-color:#C0DD97';
+    vEl.textContent = `🙂 Aam Aadmi wins by ${fmtL(diff)} — consistent SIPs beat the Genie's waiting game over ${endYear-startYear} years. Discipline > genius.`;
+  }
+
+  // ── Comparison table ──
+  function row(label, gVal, aaVal, higherIsBetter, fmt, tooltip='') {
+    let gWins = higherIsBetter ? gVal > aaVal : gVal < aaVal;
+    return `<tr>
+      <td style="color:var(--text2)">${label}${tooltip ? `<span class="info-chip" title="${tooltip}">ℹ</span>` : ''}</td>
+      <td style="color:var(--blue)">${fmt(gVal)}${gWins   ? ' <span class="winner">better</span>' : ''}</td>
+      <td style="color:var(--green)">${fmt(aaVal)}${!gWins ? ' <span class="winner">better</span>' : ''}</td>
+    </tr>`;
+  }
+  function groupRow(label) {
+    return `<tr><td class="metric-group" colspan="3">${label}</td></tr>`;
+  }
+  document.getElementById('compare-table').innerHTML =
+    `<tr><th>Metric</th><th>Genie</th><th>Aam Aadmi</th></tr>` +
+    groupRow('Returns') +
+    row('Final corpus', genieCorpusAdj, aaCorpusAdj, true, fmtL) +
+    row('Total invested', genie.invested, aa.invested, false, fmtL) +
+    row('CAGR', genie.cagr, aa.cagr, true, v=>fmtPct(v,2)) +
+    groupRow('Risk') +
+    row('Max drawdown', genie.maxDD, aa.maxDD, false, v=>fmtPct(v,1), 'Largest peak-to-trough decline of the portfolio') +
+    row('Annualised volatility', genie.vol, aa.vol, false, v=>fmtPct(v,1), 'Std deviation of monthly returns × √12') +
+    row('VaR 95% (monthly)', genie.var95, aa.var95, false, v=>fmtPct(v,1), 'Worst monthly loss at 95% confidence') +
+    row('CVaR 95% (monthly)', genie.cvar95, aa.cvar95, false, v=>fmtPct(v,1), 'Expected loss in the worst 5% of months (tail risk)') +
+    groupRow('Risk-adjusted returns') +
+    row('Sharpe ratio', genie.sharpe, aa.sharpe, true, fmtRatio, 'CAGR ÷ annualised volatility. Higher = better risk-adjusted return') +
+    row('Sortino ratio', genie.sortino, aa.sortino, true, fmtRatio, 'CAGR ÷ downside deviation. Only penalises bad volatility') +
+    row('Calmar ratio', genie.calmar, aa.calmar, true, fmtRatio, 'CAGR ÷ max drawdown. Higher = better return per unit of worst loss') +
+    groupRow('Distribution') +
+    row('% positive months', genie.posMonths, aa.posMonths, true, v=>fmtPct(v,1)) +
+    row('Best month', genie.bestMonth, aa.bestMonth, true, v=>fmtPct(v,1)) +
+    row('Worst month', genie.worstMonth, aa.worstMonth, false, v=>fmtPct(v,1));
+
+  // ── Risk tab table ──
+  function riskRow(label, gVal, aaVal, higherIsBetter, fmt, desc) {
+    let gWins = higherIsBetter ? gVal > aaVal : gVal < aaVal;
+    return `<tr>
+      <td><strong>${label}</strong><br><span style="font-size:11px;color:var(--text3)">${desc}</span></td>
+      <td style="color:var(--blue)">${fmt(gVal)}${gWins   ? ' <span class="winner">better</span>' : ''}</td>
+      <td style="color:var(--green)">${fmt(aaVal)}${!gWins ? ' <span class="winner">better</span>' : ''}</td>
+    </tr>`;
+  }
+  document.getElementById('risk-table').innerHTML =
+    `<tr><th>Metric</th><th>Genie</th><th>Aam Aadmi</th></tr>` +
+    riskRow('Sharpe Ratio', genie.sharpe, aa.sharpe, true, fmtRatio, 'Return per unit of total risk (volatility). Risk-free rate assumed 0 for simplicity.') +
+    riskRow('Sortino Ratio', genie.sortino, aa.sortino, true, fmtRatio, 'Like Sharpe but only counts downside volatility. Better reflects how bad losses feel.') +
+    riskRow('Calmar Ratio', genie.calmar, aa.calmar, true, fmtRatio, 'CAGR divided by max drawdown. Measures if the return was worth the worst pain.') +
+    riskRow('Max Drawdown', genie.maxDD, aa.maxDD, false, v=>fmtPct(v,1), 'Largest peak-to-trough decline ever seen in the portfolio.') +
+    riskRow('Annualised Volatility', genie.vol, aa.vol, false, v=>fmtPct(v,1), 'Standard deviation of monthly returns, annualised. Lower = smoother ride.') +
+    riskRow('Downside Deviation', genie.downsideDev, aa.downsideDev, false, v=>fmtPct(v,1), 'Volatility of only the negative months. Used in Sortino.') +
+    riskRow('VaR 95% (monthly)', genie.var95, aa.var95, false, v=>fmtPct(v,1), 'In any given month, there is a 5% chance of a loss worse than this.') +
+    riskRow('CVaR / Expected Shortfall 95%', genie.cvar95, aa.cvar95, false, v=>fmtPct(v,1), 'Average loss in the worst 5% of months. The true tail risk.') +
+    riskRow('% Positive Months', genie.posMonths, aa.posMonths, true, v=>fmtPct(v,1), 'How often the portfolio grew month-on-month.') +
+    riskRow('Best Month', genie.bestMonth, aa.bestMonth, true, v=>fmtPct(v,1), 'Highest single-month return.') +
+    riskRow('Worst Month', genie.worstMonth, aa.worstMonth, false, v=>fmtPct(v,1), 'Lowest single-month return.');
+
+  // ── Charts ──
+  let annualLabels = [], genieAnnual = [], aaAnnual = [], investedAnnual = [], buyHoldAnnual = [];
+  let genieInvestedCorpus = [], genieIdleCash = [], aaFlatAnnual = [];
+  for (let i = 0; i < monthlyIdx.length; i += 12) {
+    let idx = Math.min(i+11, monthlyIdx.length-1);
+    annualLabels.push(monthlyIdx[i].year + '');
+    genieAnnual.push(Math.round(maybeReal(genie.series[idx].corpus, idx)));
+    aaAnnual.push(Math.round(maybeReal(aa.series[idx].corpus, idx)));
+    investedAnnual.push(Math.round(aa.series[idx].invested));
+    buyHoldAnnual.push(Math.round(maybeReal(buyhold.series[idx].corpus, idx)));
+    genieInvestedCorpus.push(Math.round(genie.series[idx].investedCorpus));
+    genieIdleCash.push(Math.round(genie.series[idx].idleCash));
+    if (aaFlat) aaFlatAnnual.push(Math.round(maybeReal(aaFlat.series[idx].corpus, idx)));
+  }
+
+  ['growthChart','genieChart','genieCorpusChart','aaChart','distChart','drawdownChart','stepupChart'].forEach(destroyChart);
+
+  // Growth chart
+  charts['growthChart'] = new Chart(document.getElementById('growthChart'), {
+    type:'line',
+    data:{ labels:annualLabels, datasets:[
+      { label:'Genie',       data:genieAnnual,   borderColor:'#185FA5', tension:.3, pointRadius:3, fill:false, borderWidth:2 },
+      { label:'Aam Aadmi',   data:aaAnnual,      borderColor:'#3B6D11', tension:.3, pointRadius:3, fill:false, borderWidth:2 },
+      { label:'Buy & Hold',  data:buyHoldAnnual, borderColor:'#7B3FA0', tension:.3, pointRadius:2, fill:false, borderWidth:1.5, borderDash:[3,3] },
+      { label:'Invested',    data:investedAnnual,borderColor:'#BA7517', tension:.3, pointRadius:0, fill:false, borderWidth:1.5, borderDash:[5,5] }
+    ]},
+    options:{ responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{ display:false } },
+      scales:{ y:{ ticks:{ callback: v=>fmtL(v) } } }
+    }
+  });
+
+  // Equity index + bottom markers
+  let allMonthLabels = monthlyIdx.map(m=>m.label);
+  let equityIdxData  = monthlyIdx.map(m=>+m.idx.toFixed(2));
+  let bottomSet2 = new Set(bottoms.map(b=>b.monthIdx));
+  let bottomPoints = monthlyIdx.map((m,i)=>bottomSet2.has(i) ? +m.idx.toFixed(2) : null);
+
+  charts['genieChart'] = new Chart(document.getElementById('genieChart'), {
+    type:'line',
+    data:{ labels:allMonthLabels, datasets:[
+      { label:'Equity index', data:equityIdxData, borderColor:'#185FA5', tension:.2, pointRadius:0, fill:false, borderWidth:1.5 },
+      { label:'Bottom', data:bottomPoints, type:'scatter', pointRadius:7, pointBackgroundColor:'#C0392B', borderColor:'#C0392B', showLine:false }
+    ]},
+    options:{ responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{ display:false } },
+      scales:{ x:{ ticks:{ maxTicksLimit:10 } } }
+    }
+  });
+
+  // Genie corpus stacked bar
+  charts['genieCorpusChart'] = new Chart(document.getElementById('genieCorpusChart'), {
+    type:'bar',
+    data:{ labels:annualLabels, datasets:[
+      { label:'Invested corpus', data:genieInvestedCorpus, backgroundColor:'rgba(24,95,165,0.75)', borderRadius:3 },
+      { label:'Idle cash',       data:genieIdleCash,       backgroundColor:'rgba(186,117,23,0.65)', borderRadius:3 }
+    ]},
+    options:{ responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{ display:false } },
+      scales:{ x:{ stacked:true }, y:{ stacked:true, ticks:{ callback:v=>fmtL(v) } } }
+    }
+  });
+
+  // AA chart
+  charts['aaChart'] = new Chart(document.getElementById('aaChart'), {
+    type:'line',
+    data:{ labels:annualLabels, datasets:[
+      { label:'Corpus',   data:aaAnnual,       borderColor:'#3B6D11', tension:.3, pointRadius:3, fill:false, borderWidth:2 },
+      { label:'Invested', data:investedAnnual, borderColor:'#BA7517', borderDash:[5,5], tension:.3, pointRadius:0, fill:false, borderWidth:1.5 }
+    ]},
+    options:{ responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{ display:false } },
+      scales:{ y:{ ticks:{ callback:v=>fmtL(v) } } }
+    }
+  });
+
+  // Step-up comparison chart
+  if (stepup > 0 && aaFlat) {
+    document.getElementById('stepup-note').style.display = 'block';
+    charts['stepupChart'] = new Chart(document.getElementById('stepupChart'), {
+      type:'line',
+      data:{ labels:annualLabels, datasets:[
+        { label:'With step-up', data:aaAnnual,     borderColor:'#3B6D11', tension:.3, pointRadius:3, fill:false, borderWidth:2 },
+        { label:'Flat SIP',     data:aaFlatAnnual, borderColor:'#888',    tension:.3, pointRadius:2, fill:false, borderWidth:1.5, borderDash:[4,4] }
+      ]},
+      options:{ responsive:true, maintainAspectRatio:false,
+        plugins:{ legend:{ display:false } },
+        scales:{ y:{ ticks:{ callback:v=>fmtL(v) } } }
+      }
+    });
+  } else {
+    document.getElementById('stepup-note').style.display = 'none';
+  }
+
+  // Monthly return distribution histogram
+  const bins = 20;
+  const allReturns = [...genie.monthlyR, ...aa.monthlyR];
+  const minR = Math.min(...allReturns), maxR = Math.max(...allReturns);
+  const binSize = (maxR - minR) / bins;
+  const binLabels = Array.from({length:bins}, (_,i) => fmtPct((minR + i*binSize)*100, 1));
+  function makeHistogram(returns) {
+    const counts = new Array(bins).fill(0);
+    for (const r of returns) {
+      let idx = Math.floor((r - minR) / binSize);
+      idx = Math.min(idx, bins-1);
+      counts[idx]++;
+    }
+    return counts;
+  }
+  charts['distChart'] = new Chart(document.getElementById('distChart'), {
+    type:'bar',
+    data:{ labels:binLabels, datasets:[
+      { label:'Genie',     data:makeHistogram(genie.monthlyR), backgroundColor:'rgba(24,95,165,0.6)', borderRadius:2 },
+      { label:'Aam Aadmi', data:makeHistogram(aa.monthlyR),   backgroundColor:'rgba(59,109,17,0.6)', borderRadius:2 }
+    ]},
+    options:{ responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{ display:true, labels:{ boxWidth:12, font:{ size:11 } } } },
+      scales:{
+        x:{ ticks:{ maxTicksLimit:8 }, title:{ display:true, text:'Monthly return', font:{ size:11 } } },
+        y:{ title:{ display:true, text:'# months', font:{ size:11 } } }
+      }
+    }
+  });
+
+  // Drawdown chart
+  let drawdownLabels = monthlyIdx.map(m=>m.label);
+  charts['drawdownChart'] = new Chart(document.getElementById('drawdownChart'), {
+    type:'line',
+    data:{ labels:drawdownLabels, datasets:[
+      { label:'Genie',     data:genie.drawdownSeries, borderColor:'#185FA5', tension:.2, pointRadius:0, fill:true, backgroundColor:'rgba(24,95,165,0.08)', borderWidth:1.5 },
+      { label:'Aam Aadmi', data:aa.drawdownSeries,    borderColor:'#3B6D11', tension:.2, pointRadius:0, fill:true, backgroundColor:'rgba(59,109,17,0.08)',  borderWidth:1.5 }
+    ]},
+    options:{ responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{ display:false } },
+      scales:{
+        x:{ ticks:{ maxTicksLimit:10 } },
+        y:{ ticks:{ callback: v=>fmtPct(v,0) }, title:{ display:true, text:'Drawdown %', font:{ size:11 } } }
+      }
+    }
+  });
+
+  // ── Bottoms list ──
+  let bl = document.getElementById('bottom-list');
+  if (bottoms.length === 0) {
+    bl.innerHTML = '<p style="color:var(--text3);padding:8px 0">No bottoms found at this threshold. Try lowering it.</p>';
+  } else {
+    bl.innerHTML = genie.bottomDeployed.map((b,i) =>
+      `<div class="bottom-item">
+        <span class="badge">${b.label}</span>
+        <span style="color:var(--text2)">${bottoms[i]?.drawdown ?? '—'}% drawdown</span>
+        <span style="margin-left:auto;font-weight:600;color:var(--blue)">${fmtL(b.amount)} deployed</span>
+      </div>`
+    ).join('');
+  }
+
+  showTab('compare');
+}
+
+// ─────────────────────────────────────────────
+// 7. TAB SWITCHER
+// ─────────────────────────────────────────────
+function showTab(name) {
+  document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.getElementById('tab-'+name).classList.add('active');
+  const tabs = ['compare','risk','genie','aa'];
+  document.querySelectorAll('.tab')[tabs.indexOf(name)]?.classList.add('active');
+  setTimeout(()=>Object.values(charts).forEach(c=>c.resize()), 50);
+}
+
+// ─────────────────────────────────────────────
+// 8. INIT
+// ─────────────────────────────────────────────
+(async () => {
+  const overlay = document.getElementById('loadingOverlay');
+  overlay.classList.add('show');
+  await loadLiveData();
+  overlay.classList.remove('show');
+  // Auto-run with defaults
+  runSim();
+})();
+</script>
+</body>
+</html>
